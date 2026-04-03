@@ -1,28 +1,41 @@
-#!bin/bash
+#!/bin/bash
 
-set -e
+set -euo pipefail
 
-if [[ -f "/workspaces/frappe_codespace/frappe-bench/apps/frappe" ]]
-then
-    echo "Bench already exists, skipping init"
-    exit 0
+WORKSPACE_DIR="/workspace"
+BENCH_DIR="${WORKSPACE_DIR}/frappe-bench"
+SITE_NAME="dev.localhost"
+
+if [[ -s "/home/frappe/.nvm/nvm.sh" ]]; then
+    echo "[init] Configuring Node.js via nvm"
+    # shellcheck disable=SC1091
+    source /home/frappe/.nvm/nvm.sh
+    nvm install 20
+    nvm alias default 20
+    nvm use 20
+
+    if ! grep -q "nvm use 20" ~/.bashrc; then
+        echo "nvm use 20" >> ~/.bashrc
+    fi
 fi
 
-rm -rf /workspaces/frappe_codespace/.git
+if ! command -v bench >/dev/null 2>&1; then
+    echo "bench command not found in PATH"
+    exit 1
+fi
 
-source /home/frappe/.nvm/nvm.sh
-nvm alias default 18
-nvm use 18
+cd "${WORKSPACE_DIR}"
 
-echo "nvm use 18" >> ~/.bashrc
-cd /workspace
+if [[ -d "${BENCH_DIR}" && ! -d "${BENCH_DIR}/apps/frappe" ]]; then
+    rm -rf "${BENCH_DIR}"
+fi
 
-bench init \
---ignore-exist \
---skip-redis-config-generation \
-frappe-bench
+if [[ ! -d "${BENCH_DIR}/apps/frappe" ]]; then
+    echo "[init] Initializing bench (this can take several minutes)"
+    bench init --ignore-exist --skip-redis-config-generation frappe-bench
+fi
 
-cd frappe-bench
+cd "${BENCH_DIR}"
 
 # Use containers instead of localhost
 bench set-mariadb-host mariadb
@@ -30,15 +43,19 @@ bench set-redis-cache-host redis-cache:6379
 bench set-redis-queue-host redis-queue:6379
 bench set-redis-socketio-host redis-socketio:6379
 
-# Remove redis from Procfile
-sed -i '/redis/d' ./Procfile
+# Remove redis processes from Procfile because Redis runs in separate containers.
+if [[ -f "./Procfile" ]]; then
+    sed -i '/redis/d' ./Procfile
+fi
 
+if [[ ! -d "sites/${SITE_NAME}" ]]; then
+    echo "[init] Creating site ${SITE_NAME}"
+    bench new-site "${SITE_NAME}" --mariadb-root-password 123 --admin-password admin --no-mariadb-socket
+fi
 
-bench new-site dev.localhost \
---mariadb-root-password 123 \
---admin-password admin \
---no-mariadb-socket
+echo "[init] Applying development defaults"
+bench --site "${SITE_NAME}" set-config developer_mode 1
+bench --site "${SITE_NAME}" clear-cache
+bench use "${SITE_NAME}"
 
-bench --site dev.localhost set-config developer_mode 1
-bench --site dev.localhost clear-cache
-bench use dev.localhost
+echo "[init] Setup complete"

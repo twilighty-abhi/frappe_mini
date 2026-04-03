@@ -1,4 +1,3 @@
-version: "3.7"
 services:
   mariadb:
     image: mariadb:10.6
@@ -6,7 +5,6 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --skip-character-set-client-handshake
-      - --skip-innodb-read-only-compressed # Temporary fix for MariaDB 10.6
     environment:
       MYSQL_ROOT_PASSWORD: 123
     volumes:
@@ -21,13 +19,13 @@ services:
   #     - postgresql-data:/var/lib/postgresql/data
 
   redis-cache:
-    image: redis:alpine
+    image: redis:6-alpine
 
   redis-queue:
-    image: redis:alpine
+    image: redis:6-alpine
 
   redis-socketio:
-    image: redis:alpine
+    image: redis:6-alpine
 
   frappe:
     image: frappe/bench:latest
