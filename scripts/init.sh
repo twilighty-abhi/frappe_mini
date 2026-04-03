@@ -5,14 +5,59 @@ set -euo pipefail
 WORKSPACE_DIR="/workspace"
 BENCH_DIR="${WORKSPACE_DIR}/frappe-bench"
 SITE_NAME="dev.localhost"
+INIT_MARKER="${BENCH_DIR}/sites/.codespace-init-done"
+
+log() {
+    echo "[init] $*"
+}
+
+run_with_timeout() {
+    local duration="$1"
+    shift
+
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "${duration}" "$@"
+    else
+        "$@"
+    fi
+}
+
+wait_for_mariadb() {
+    local retries=90
+    local attempt=1
+
+    log "Waiting for MariaDB at mariadb:3306"
+    while [[ ${attempt} -le ${retries} ]]; do
+        if (echo > /dev/tcp/mariadb/3306) >/dev/null 2>&1; then
+            log "MariaDB is reachable"
+            return 0
+        fi
+
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+
+    log "MariaDB did not become reachable in time"
+    return 1
+}
+
+if [[ -f "${INIT_MARKER}" ]]; then
+    log "Setup already completed earlier, skipping"
+    exit 0
+fi
 
 if [[ -s "/home/frappe/.nvm/nvm.sh" ]]; then
-    echo "[init] Configuring Node.js via nvm"
+    log "Configuring Node.js via nvm"
     # shellcheck disable=SC1091
     source /home/frappe/.nvm/nvm.sh
-    nvm install 20
-    nvm alias default 20
-    nvm use 20
+
+    if command -v node >/dev/null 2>&1 && node -v | grep -q '^v20\.'; then
+        log "Node.js 20 is already active"
+    else
+        nvm install 20
+        nvm alias default 20
+        nvm use 20
+    fi
 
     if ! grep -q "nvm use 20" ~/.bashrc; then
         echo "nvm use 20" >> ~/.bashrc
@@ -20,7 +65,7 @@ if [[ -s "/home/frappe/.nvm/nvm.sh" ]]; then
 fi
 
 if ! command -v bench >/dev/null 2>&1; then
-    echo "bench command not found in PATH"
+    log "bench command not found in PATH"
     exit 1
 fi
 
@@ -31,11 +76,13 @@ if [[ -d "${BENCH_DIR}" && ! -d "${BENCH_DIR}/apps/frappe" ]]; then
 fi
 
 if [[ ! -d "${BENCH_DIR}/apps/frappe" ]]; then
-    echo "[init] Initializing bench (this can take several minutes)"
-    bench init --ignore-exist --skip-redis-config-generation frappe-bench
+    log "Initializing bench (this clones the Frappe framework repository once)"
+    run_with_timeout 45m bench init --ignore-exist --skip-redis-config-generation --frappe-branch develop frappe-bench
 fi
 
 cd "${BENCH_DIR}"
+
+wait_for_mariadb
 
 # Use containers instead of localhost
 bench set-mariadb-host mariadb
@@ -49,13 +96,15 @@ if [[ -f "./Procfile" ]]; then
 fi
 
 if [[ ! -d "sites/${SITE_NAME}" ]]; then
-    echo "[init] Creating site ${SITE_NAME}"
-    bench new-site "${SITE_NAME}" --mariadb-root-password 123 --admin-password admin --no-mariadb-socket
+    log "Creating site ${SITE_NAME}"
+    run_with_timeout 20m bench new-site "${SITE_NAME}" --mariadb-root-password 123 --admin-password admin --no-mariadb-socket
 fi
 
-echo "[init] Applying development defaults"
+log "Applying development defaults"
 bench --site "${SITE_NAME}" set-config developer_mode 1
 bench --site "${SITE_NAME}" clear-cache
 bench use "${SITE_NAME}"
 
-echo "[init] Setup complete"
+touch "${INIT_MARKER}"
+
+log "Setup complete"
