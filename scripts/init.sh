@@ -12,6 +12,8 @@ log() {
 }
 
 ensure_yarn() {
+    export PATH="$HOME/.local/bin:$PATH"
+
     if command -v yarn >/dev/null 2>&1; then
         log "yarn already available: $(yarn --version)"
         return 0
@@ -23,18 +25,30 @@ ensure_yarn() {
         corepack prepare yarn@1.22.22 --activate
     elif command -v npm >/dev/null 2>&1; then
         log "Installing yarn via npm"
-        npm install -g yarn
+        npm install -g yarn@1.22.22
     else
         log "Neither corepack nor npm is available to install yarn"
         return 1
     fi
+
+    # Some environments expose only corepack; provide a stable yarn shim.
+    if ! command -v yarn >/dev/null 2>&1 && command -v corepack >/dev/null 2>&1; then
+        mkdir -p "$HOME/.local/bin"
+        cat > "$HOME/.local/bin/yarn" <<'EOF'
+#!/usr/bin/env bash
+exec corepack yarn "$@"
+EOF
+        chmod +x "$HOME/.local/bin/yarn"
+    fi
+
+    hash -r
 
     if ! command -v yarn >/dev/null 2>&1; then
         log "yarn installation failed"
         return 1
     fi
 
-    log "yarn installed: $(yarn --version)"
+    log "yarn installed: $(yarn --version) ($(command -v yarn))"
 }
 
 run_with_timeout() {
@@ -45,6 +59,14 @@ run_with_timeout() {
         timeout "${duration}" "$@"
     else
         "$@"
+    fi
+}
+
+run_bench_init() {
+    if command -v timeout >/dev/null 2>&1; then
+        printf 'n\n' | timeout 45m bench init --ignore-exist --skip-redis-config-generation --frappe-branch develop frappe-bench
+    else
+        printf 'n\n' | bench init --ignore-exist --skip-redis-config-generation --frappe-branch develop frappe-bench
     fi
 }
 
@@ -102,6 +124,7 @@ if ! command -v bench >/dev/null 2>&1; then
 fi
 
 ensure_yarn
+log "Using yarn at: $(command -v yarn)"
 
 cd "${WORKSPACE_DIR}"
 
@@ -112,7 +135,7 @@ fi
 
 if ! is_bench_ready; then
     log "Initializing bench (this clones the Frappe framework repository once)"
-    run_with_timeout 45m bash -lc "printf 'n\n' | bench init --ignore-exist --skip-redis-config-generation --frappe-branch develop frappe-bench"
+    run_bench_init
 fi
 
 cd "${BENCH_DIR}"
