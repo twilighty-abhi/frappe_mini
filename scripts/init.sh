@@ -11,6 +11,32 @@ log() {
     echo "[init] $*"
 }
 
+ensure_yarn() {
+    if command -v yarn >/dev/null 2>&1; then
+        log "yarn already available: $(yarn --version)"
+        return 0
+    fi
+
+    if command -v corepack >/dev/null 2>&1; then
+        log "Installing yarn via corepack"
+        corepack enable
+        corepack prepare yarn@1.22.22 --activate
+    elif command -v npm >/dev/null 2>&1; then
+        log "Installing yarn via npm"
+        npm install -g yarn
+    else
+        log "Neither corepack nor npm is available to install yarn"
+        return 1
+    fi
+
+    if ! command -v yarn >/dev/null 2>&1; then
+        log "yarn installation failed"
+        return 1
+    fi
+
+    log "yarn installed: $(yarn --version)"
+}
+
 run_with_timeout() {
     local duration="$1"
     shift
@@ -41,6 +67,12 @@ wait_for_mariadb() {
     return 1
 }
 
+is_bench_ready() {
+    [[ -d "${BENCH_DIR}/apps/frappe" ]] &&
+    [[ -f "${BENCH_DIR}/sites/common_site_config.json" ]] &&
+    [[ -x "${BENCH_DIR}/env/bin/python" ]]
+}
+
 if [[ -f "${INIT_MARKER}" ]]; then
     log "Setup already completed earlier, skipping"
     exit 0
@@ -69,15 +101,18 @@ if ! command -v bench >/dev/null 2>&1; then
     exit 1
 fi
 
+ensure_yarn
+
 cd "${WORKSPACE_DIR}"
 
-if [[ -d "${BENCH_DIR}" && ! -d "${BENCH_DIR}/apps/frappe" ]]; then
+if [[ -d "${BENCH_DIR}" ]] && ! is_bench_ready; then
+    log "Found partial bench from an earlier failed run, recreating"
     rm -rf "${BENCH_DIR}"
 fi
 
-if [[ ! -d "${BENCH_DIR}/apps/frappe" ]]; then
+if ! is_bench_ready; then
     log "Initializing bench (this clones the Frappe framework repository once)"
-    run_with_timeout 45m bench init --ignore-exist --skip-redis-config-generation --frappe-branch develop frappe-bench
+    run_with_timeout 45m bash -lc "printf 'n\n' | bench init --ignore-exist --skip-redis-config-generation --frappe-branch develop frappe-bench"
 fi
 
 cd "${BENCH_DIR}"
