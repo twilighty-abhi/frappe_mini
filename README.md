@@ -24,6 +24,7 @@ Setup happens in two steps -
 # Notes 
 
 - The init script takes some time, so you can track the progress by selecting the "Codespaces : View Creation Log" from the command palette. Ideally you should wait until this process is completed. 
+- On first run, `bench init` clones the Frappe framework repository into `frappe-bench/apps/frappe`; this is expected and can take several minutes.
 - The Procfile generated includes `bench serve` so `bench start` will work as usual, however if you'd like to use the debugger, you want to remove the `bench serve` line in the Procfile and run `Bench Web` from VSCode instead
 - I've configured the settings so that the Python extension points to the correct python in the venv be default, however if you're having issues with VSCode's linter behaving badly or the launch options not working (frappe not found) do check which python binary VSCode is using
 - Github Codespaces works with the native version of VSCode for virtually native experience, you only need to install the Codespaces extension and configure it to connect to your Codespace. I recommend doing this over using the browser. 
