@@ -5,7 +5,7 @@ set -euo pipefail
 WORKSPACE_DIR="/workspace"
 BENCH_DIR="${WORKSPACE_DIR}/frappe-bench"
 SITE_NAME="dev.localhost"
-NODE_MAJOR="${NODE_MAJOR:-24}"
+NODE_MAJOR="24"
 INIT_MARKER="${BENCH_DIR}/sites/.codespace-init-done"
 
 # Codespaces bind mounts usually do not support hardlinks reliably.
@@ -93,6 +93,23 @@ wait_for_mariadb() {
     return 1
 }
 
+require_node_major() {
+    if ! command -v node >/dev/null 2>&1; then
+        log "node is not available in PATH"
+        return 1
+    fi
+
+    local actual_major
+    actual_major="$(node -v | sed -E 's/^v([0-9]+).*/\1/')"
+    if [[ "${actual_major}" != "${NODE_MAJOR}" ]]; then
+        log "Expected Node ${NODE_MAJOR}.x, but got $(node -v)"
+        return 1
+    fi
+
+    log "Active node: $(node -v)"
+    return 0
+}
+
 is_bench_ready() {
     [[ -d "${BENCH_DIR}/apps/frappe" ]] &&
     [[ -f "${BENCH_DIR}/sites/common_site_config.json" ]] &&
@@ -117,10 +134,13 @@ if [[ -s "/home/frappe/.nvm/nvm.sh" ]]; then
         nvm use "${NODE_MAJOR}"
     fi
 
+    sed -i '/nvm use 20/d' ~/.bashrc
     if ! grep -q "nvm use ${NODE_MAJOR}" ~/.bashrc; then
         echo "nvm use ${NODE_MAJOR}" >> ~/.bashrc
     fi
 fi
+
+require_node_major
 
 if ! command -v bench >/dev/null 2>&1; then
     log "bench command not found in PATH"
