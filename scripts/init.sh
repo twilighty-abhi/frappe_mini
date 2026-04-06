@@ -168,9 +168,9 @@ wait_for_mariadb
 
 # Use containers instead of localhost
 bench set-mariadb-host mariadb
-bench set-redis-cache-host redis-cache:6379
-bench set-redis-queue-host redis-queue:6379
-bench set-redis-socketio-host redis-socketio:6379
+bench set-config -g redis_cache "redis://redis-cache:6379"
+bench set-config -g redis_queue "redis://redis-queue:6379"
+bench set-config -g redis_socketio "redis://redis-socketio:6379"
 
 # Remove redis processes from Procfile because Redis runs in separate containers.
 if [[ -f "./Procfile" ]]; then
