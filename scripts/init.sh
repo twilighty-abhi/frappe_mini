@@ -8,6 +8,9 @@ SITE_NAME="dev.localhost"
 NODE_MAJOR="${NODE_MAJOR:-24}"
 INIT_MARKER="${BENCH_DIR}/sites/.codespace-init-done"
 
+# Codespaces bind mounts usually do not support hardlinks reliably.
+export UV_LINK_MODE="${UV_LINK_MODE:-copy}"
+
 log() {
     echo "[init] $*"
 }
