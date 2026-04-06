@@ -5,6 +5,7 @@ set -euo pipefail
 WORKSPACE_DIR="/workspace"
 BENCH_DIR="${WORKSPACE_DIR}/frappe-bench"
 SITE_NAME="dev.localhost"
+NODE_MAJOR="${NODE_MAJOR:-24}"
 INIT_MARKER="${BENCH_DIR}/sites/.codespace-init-done"
 
 log() {
@@ -101,20 +102,20 @@ if [[ -f "${INIT_MARKER}" ]]; then
 fi
 
 if [[ -s "/home/frappe/.nvm/nvm.sh" ]]; then
-    log "Configuring Node.js via nvm"
+    log "Configuring Node.js via nvm (target major: ${NODE_MAJOR})"
     # shellcheck disable=SC1091
     source /home/frappe/.nvm/nvm.sh
 
-    if command -v node >/dev/null 2>&1 && node -v | grep -q '^v20\.'; then
-        log "Node.js 20 is already active"
+    if command -v node >/dev/null 2>&1 && node -v | grep -Eq "^v${NODE_MAJOR}(\\.|$)"; then
+        log "Node.js ${NODE_MAJOR} is already active"
     else
-        nvm install 20
-        nvm alias default 20
-        nvm use 20
+        nvm install "${NODE_MAJOR}"
+        nvm alias default "${NODE_MAJOR}"
+        nvm use "${NODE_MAJOR}"
     fi
 
-    if ! grep -q "nvm use 20" ~/.bashrc; then
-        echo "nvm use 20" >> ~/.bashrc
+    if ! grep -q "nvm use ${NODE_MAJOR}" ~/.bashrc; then
+        echo "nvm use ${NODE_MAJOR}" >> ~/.bashrc
     fi
 fi
 
