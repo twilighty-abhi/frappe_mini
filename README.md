@@ -1,31 +1,117 @@
-# Setup
+# Frappe Codespaces Starter
 
-It's ridiculously easy - 
+This repository brings up a Frappe development environment in GitHub Codespaces using Docker Compose.
 
-![open-with-codespaces](https://docs.github.com/assets/cb-138303/images/help/codespaces/new-codespace-button.png)
+## What Happens Automatically
 
-Setup happens in two steps - 
-1. Github will first create a codespace
-2. Once the codespace is initialized (you will see VSCode UI) a script runs that will -
-   1. Create a bench with Frappe develop branch and configure it
-   2. Create a new site called dev.localhost with the password `admin`
-   3. Enables developer mode, sets dev.localhost as default site 
+When the Codespace starts, `scripts/init.sh` runs from both `postCreateCommand` and `postStartCommand`.
 
-# Features
+On a fresh setup, it will:
 
-1. A fresh bench is initialized with the latest Frappe develop code along with a new site when the codespace is initially created
-1. Pre-configured `launch.json` with the following options -
-   1. Web Server
-   2. 3 Workers
-   3. Bench Watch
-2. Pre-installed Extensions
-3. Pre-configured [SQLTools](https://marketplace.visualstudio.com/items?itemName=mtxr.sqltools)
+1. Ensure Node.js 24 and Yarn are available.
+2. Initialize a bench at `/workspace/frappe-bench` from Frappe `develop`.
+3. Configure external services:
+   - MariaDB at `mariadb`
+   - Redis cache at `redis://redis-cache:6379`
+   - Redis queue at `redis://redis-queue:6379`
+   - Redis socketio at `redis://redis-socketio:6379`
+4. Create site `dev.localhost`.
+5. Enable developer mode and set default site.
 
-# Notes 
+Defaults used by init:
 
-- The init script takes some time, so you can track the progress by selecting the "Codespaces : View Creation Log" from the command palette. Ideally you should wait until this process is completed. 
-- On first run, `bench init` clones the Frappe framework repository into `frappe-bench/apps/frappe`; this is expected and can take several minutes.
-- Frappe `develop` currently requires Node.js `>=24`; the init script now installs Node 24 automatically.
-- The Procfile generated includes `bench serve` so `bench start` will work as usual, however if you'd like to use the debugger, you want to remove the `bench serve` line in the Procfile and run `Bench Web` from VSCode instead
-- I've configured the settings so that the Python extension points to the correct python in the venv be default, however if you're having issues with VSCode's linter behaving badly or the launch options not working (frappe not found) do check which python binary VSCode is using
-- Github Codespaces works with the native version of VSCode for virtually native experience, you only need to install the Codespaces extension and configure it to connect to your Codespace. I recommend doing this over using the browser. 
+- Site: `dev.localhost`
+- Admin password: `admin`
+- DB root user: `root`
+- DB root password: `123`
+
+## First-Time Setup
+
+1. Create a Codespace from the latest commit on your branch.
+2. Open creation logs:
+   - Command Palette -> `Codespaces: View Creation Log`
+3. Wait for init to complete.
+
+Expected completion line:
+
+```text
+[init] Setup complete
+```
+
+## Manual Run
+
+If you want to run setup manually inside Codespace:
+
+```bash
+cd /workspace
+bash /workspace/scripts/init.sh
+```
+
+Verify:
+
+```bash
+cd /workspace/frappe-bench
+bench --site dev.localhost list-apps
+```
+
+## If Codespace Uses Old Commits
+
+Run this in Codespace terminal:
+
+```bash
+cd /workspace
+git fetch --all --prune
+git pull --ff-only
+git rev-parse HEAD
+```
+
+If still stale, create a brand-new Codespace from the correct branch/commit.
+
+## Recover From Failed/Partial Setup
+
+If setup failed in the middle:
+
+```bash
+cd /workspace
+rm -rf /workspace/frappe-bench
+bash /workspace/scripts/init.sh
+```
+
+If terminal is stuck in an interactive process, open a new terminal and run:
+
+```bash
+pkill -f "bench new-site" || true
+pkill -f "bench_helper.py" || true
+pkill -f "mysql" || true
+```
+
+Then rerun init.
+
+## Daily Dev Commands
+
+Start services:
+
+```bash
+cd /workspace/frappe-bench
+bench start
+```
+
+Build assets:
+
+```bash
+cd /workspace/frappe-bench
+bench build
+```
+
+Run migrations:
+
+```bash
+cd /workspace/frappe-bench
+bench --site dev.localhost migrate
+```
+
+## Notes
+
+- First run is slow because `bench init` clones Frappe and builds assets.
+- Frappe `develop` currently expects Node.js 24.
+- `scripts/init.sh` is idempotent and skips once completion marker exists.
