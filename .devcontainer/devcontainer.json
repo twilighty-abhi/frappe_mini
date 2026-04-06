@@ -21,5 +21,6 @@
   "service": "frappe",
   "workspaceFolder": "/workspace",
   "postCreateCommand": "bash /workspace/scripts/init.sh",
+  "postStartCommand": "bash /workspace/scripts/init.sh",
   "shutdownAction": "stopCompose"
 }
