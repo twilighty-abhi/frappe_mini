@@ -4,22 +4,6 @@ It's ridiculously easy -
 
 ![open-with-codespaces](https://docs.github.com/assets/cb-138303/images/help/codespaces/new-codespace-button.png)
 
-# One-Shot Ubuntu Installer
-
-If you want to follow the Final_doc installation guide as a single script on Ubuntu, use:
-
-```bash
-bash scripts/install_frappe_from_t4gc.sh
-```
-
-To create a site as part of installation:
-
-```bash
-SITE_NAME=dev.localhost DB_ROOT_PASSWORD=123 ADMIN_PASSWORD=admin bash scripts/install_frappe_from_t4gc.sh
-```
-
-These are now the default values in the installer, so running `bash scripts/install_frappe_from_t4gc.sh` will create `dev.localhost` with those credentials unless you override them.
-
 Setup happens in two steps - 
 1. Github will first create a codespace
 2. Once the codespace is initialized (you will see VSCode UI) a script runs that will -
