@@ -6,6 +6,8 @@ WORKSPACE_DIR="/workspace"
 BENCH_DIR="${WORKSPACE_DIR}/frappe-bench"
 SITE_NAME="dev.localhost"
 NODE_MAJOR="24"
+DB_ROOT_USER="${DB_ROOT_USER:-root}"
+DB_ROOT_PASSWORD="${DB_ROOT_PASSWORD:-123}"
 INIT_MARKER="${BENCH_DIR}/sites/.codespace-init-done"
 
 # Codespaces bind mounts usually do not support hardlinks reliably.
@@ -177,9 +179,9 @@ if [[ -f "./Procfile" ]]; then
     sed -i '/redis/d' ./Procfile
 fi
 
-if [[ ! -d "sites/${SITE_NAME}" ]]; then
+if [[ ! -f "sites/${SITE_NAME}/site_config.json" ]]; then
     log "Creating site ${SITE_NAME}"
-    run_with_timeout 20m bench new-site "${SITE_NAME}" --mariadb-root-password 123 --admin-password admin --no-mariadb-socket
+    run_with_timeout 20m bench new-site "${SITE_NAME}" --db-root-username "${DB_ROOT_USER}" --db-root-password "${DB_ROOT_PASSWORD}" --admin-password admin
 fi
 
 log "Applying development defaults"
